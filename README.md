@@ -1,92 +1,122 @@
-<<<<<<< HEAD
-# Local Voice AI
+<div align="center">
 
-Local Voice AI is a small MVP for using ElevenLabs as the voice interface while your own FastAPI backend acts as the AI brain.
+# 🎙️ LocalVoiceAI
 
-ElevenLabs handles speech-to-text, turn-taking, text-to-speech, and playback. This project exposes an OpenAI-compatible Chat Completions endpoint that ElevenLabs can call. The current LLM provider is Ollama with `llama3.1:latest`, but the provider layer is separated so you can later add OpenAI, Anthropic, Gemini, or another local model without rewriting the ElevenLabs-facing API.
+**ElevenLabs handles the voice. Your own local LLM handles the brain.**
 
-## Architecture
+A self-hosted, OpenAI-compatible Custom LLM backend that plugs into ElevenLabs Conversational AI — so the speech-to-text, turn-taking, and text-to-speech stay on ElevenLabs' infra while the actual thinking happens on your own machine, for free, via Ollama.
+
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-async%20backend-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Ollama](https://img.shields.io/badge/LLM-Ollama%20(local)-000000?logo=ollama&logoColor=white)](https://ollama.com/)
+[![ElevenLabs](https://img.shields.io/badge/Voice-ElevenLabs-8A2BE2)](https://elevenlabs.io/)
+[![Streamlit](https://img.shields.io/badge/Debug%20UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+
+[Overview](#-overview) • [Demo](#-demo) • [Architecture](#-architecture) • [Tech Stack](#-tech-stack) • [Setup](#-setup) • [API](#-api-reference) • [Roadmap](#-roadmap)
+
+</div>
+
+---
+
+## 🧠 Overview
+
+LocalVoiceAI is an MVP that lets you swap ElevenLabs' default LLM for a model running entirely on your own hardware, with **zero cloud inference cost**.
+
+ElevenLabs' Conversational AI agent still does all the voice work — speech recognition, turn-taking, and speech synthesis. But instead of sending the conversation to OpenAI/Anthropic/Gemini, it calls **your** FastAPI server, which speaks the OpenAI Chat Completions protocol and forwards everything to a local **Ollama** model (`llama3.1:latest` by default).
+
+The provider layer is abstracted behind a common interface, so swapping Ollama for a hosted provider later is a config change, not a rewrite.
+
+**What's in the box:**
+- 🔌 An OpenAI-compatible `/v1/chat/completions` endpoint (streaming + non-streaming) that ElevenLabs' Custom LLM integration can call directly
+- 🌐 A built-in browser widget (mic button + live transcript) that talks to the ElevenLabs Conversational AI SDK directly, using a signed URL/agent ID your backend issues
+- 🧪 A Streamlit debug console to chat with the backend without touching ElevenLabs at all
+- 🔐 Optional bearer-token auth on the completions endpoint
+
+## 📸 Demo
+
+<div align="center">
+
+![LocalVoiceAI browser widget — connected and listening](demo/screenshot.png)
+
+*The built-in browser widget: mic status, connection state, and a live transcript of the conversation with the local model.*
+
+</div>
+
+A short screen recording is also available at [`demo/demo.mp4`](demo/demo.mp4).
+
+## 🏗️ Architecture
+
+**Voice path** (this is the one ElevenLabs actually drives):
 
 ```text
-User speaks
-  -> ElevenLabs Agent
-  -> FastAPI Custom LLM server
-  -> LLM provider abstraction
-  -> Ollama
-  -> FastAPI streams OpenAI-compatible SSE chunks
-  -> ElevenLabs turns text into speech
+User speaks (browser mic)
+  → ElevenLabs Conversational AI Agent (STT + turn-taking)
+  → FastAPI  /v1/chat/completions  (Custom LLM, OpenAI-compatible)
+  → LLM provider abstraction
+  → Ollama (llama3.1:latest)
+  → FastAPI streams back OpenAI-style SSE chunks
+  → ElevenLabs turns the text into speech (TTS)
 ```
 
-The Streamlit UI is only for testing and monitoring. It does not do speech recognition or text-to-speech.
+**Debug path** (Streamlit — text only, no voice):
 
 ```text
-Streamlit UI
-  -> FastAPI API
-  -> LLM Provider
-  -> Ollama
+Streamlit UI  →  FastAPI API  →  LLM Provider  →  Ollama
 ```
 
-## Project Structure
+The `/api/conversation/signed-url` endpoint is what the browser widget calls before opening a WebSocket to ElevenLabs — it returns a signed URL when an `ELEVENLABS_API_KEY` is configured, or falls back to a bare `agent_id` for a public/allowlisted agent.
+
+## 🧰 Tech Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| Voice orchestration | ElevenLabs Conversational AI | STT, turn-taking, TTS, WebSocket transport |
+| Backend API | FastAPI + Uvicorn | OpenAI-compatible Custom LLM endpoint |
+| HTTP client | httpx (async) | Talks to Ollama and the ElevenLabs REST API |
+| Local inference | Ollama (`llama3.1:latest`) | Runs the actual model, pluggable via provider interface |
+| Config | Pydantic + python-dotenv | Typed settings loaded from `.env` |
+| Browser widget | Vanilla JS + `@elevenlabs/client` | Mic button, live transcript, no build step |
+| Debug console | Streamlit | Text-only chat against the backend for testing |
+
+## 📁 Project Structure
 
 ```text
 LocalVoiceAI/
-|-- app/
-|   |-- __init__.py
-|   |-- main.py
-|   |-- config.py
-|   |-- schemas.py
-|   `-- llm/
-|       |-- __init__.py
-|       |-- base.py
-|       `-- ollama_provider.py
-|-- ui/
-|   `-- streamlit_app.py
-|-- .env.example
-|-- requirements.txt
-|-- README.md
-`-- .gitignore
+├── app/
+│   ├── main.py            # FastAPI app: routes, SSE streaming, signed-url proxy
+│   ├── config.py          # Pydantic Settings loaded from .env
+│   ├── schemas.py         # OpenAI-compatible request/response models
+│   └── llm/
+│       ├── base.py            # LLMProvider interface + error types
+│       └── ollama_provider.py  # Ollama implementation (chat, stream, health check)
+├── frontend/
+│   ├── index.html          # Mic button + transcript widget
+│   ├── app.js               # Wires up @elevenlabs/client, drives the UI
+│   └── styles.css
+├── ui/
+│   └── streamlit_app.py    # Text-only debug console
+├── demo/
+│   ├── screenshot.png      # Browser widget screenshot
+│   └── demo.mp4            # Screen recording of a live conversation
+├── requirements.txt
+└── README.md
 ```
 
-## Setup on Windows PowerShell
+## ⚙️ Setup
 
-Open PowerShell and go to the project:
+### 1. Clone and install
 
-```powershell
-cd E:\work\LocalVoiceAI
-```
-
-Create a virtual environment:
-
-```powershell
+```bash
+git clone https://github.com/ahmedayman2825/LocalVoiceAI.git
+cd LocalVoiceAI
 python -m venv .venv
-```
-
-Activate it:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-If PowerShell blocks activation, run this once for the current shell:
-
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-.\.venv\Scripts\Activate.ps1
-```
-
-Install dependencies:
-
-```powershell
+source .venv/bin/activate      # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-Copy the environment example:
+### 2. Configure environment
 
-```powershell
-Copy-Item .env.example .env
-```
-
-The default `.env` values are:
+Create a `.env` file in the project root:
 
 ```env
 LLM_PROVIDER=ollama
@@ -96,204 +126,98 @@ HOST=0.0.0.0
 PORT=8000
 BACKEND_URL=http://localhost:8000
 CUSTOM_LLM_API_KEY=
+ELEVENLABS_API_KEY=
+ELEVENLABS_AGENT_ID=
 ```
 
-## Verify Ollama
+`CUSTOM_LLM_API_KEY` is optional — leave it blank to disable auth on `/v1/chat/completions`. `ELEVENLABS_AGENT_ID` is required for the browser voice widget; `ELEVENLABS_API_KEY` is only needed if your agent requires a signed URL rather than a public/allowlisted `agent_id`.
 
-Make sure Ollama is installed and running. Then check the available models:
+### 3. Pull the model and run Ollama
 
-```powershell
-ollama list
-```
-
-Expected model:
-
-```text
-llama3.1:latest
-```
-
-If it is missing, pull it:
-
-```powershell
+```bash
 ollama pull llama3.1:latest
+ollama serve
 ```
 
-## Start the FastAPI Backend
+### 4. Start the backend
 
-```powershell
+```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Test health in a second PowerShell window:
-
-```powershell
-Invoke-RestMethod http://localhost:8000/health
+```bash
+curl http://localhost:8000/health
 ```
-
-Expected successful response:
 
 ```json
-{
-  "status": "ok",
-  "provider": "ollama",
-  "model": "llama3.1:latest"
-}
+{ "status": "ok", "provider": "ollama", "model": "llama3.1:latest" }
 ```
 
-The actual response also includes Ollama reachability and model availability details.
+### 5. Try it
 
-## Test Chat Completions
+- **Browser widget:** open `http://localhost:8000/` for the mic + transcript UI
+- **Streamlit debug console:**
 
-Non-streaming test:
+  ```bash
+  streamlit run ui/streamlit_app.py
+  ```
 
-```powershell
-$body = @{
-  model = "local-llama"
-  messages = @(
-    @{ role = "system"; content = "You are a helpful assistant." },
-    @{ role = "user"; content = "Say hello in one short sentence." }
-  )
-  temperature = 0.7
-  max_tokens = 100
-  stream = $false
-} | ConvertTo-Json -Depth 10
+  then open `http://localhost:8501`
 
-Invoke-RestMethod `
-  -Uri http://localhost:8000/v1/chat/completions `
-  -Method Post `
-  -ContentType "application/json" `
-  -Body $body
-```
+### 6. Wire it into ElevenLabs
 
-Streaming test:
+Expose the backend publicly (e.g. with ngrok) and point your ElevenLabs agent's Custom LLM config at it:
 
-```powershell
-$body = @{
-  model = "local-llama"
-  messages = @(
-    @{ role = "user"; content = "Count from one to three." }
-  )
-  stream = $true
-} | ConvertTo-Json -Depth 10
-
-curl.exe -N `
-  -H "Content-Type: application/json" `
-  -d $body `
-  http://localhost:8000/v1/chat/completions
-```
-
-Streaming responses use `Content-Type: text/event-stream`, emit `data: {JSON}` chunks, and finish with:
-
-```text
-data: [DONE]
-```
-
-## Optional API Key
-
-By default, authentication is disabled:
-
-```env
-CUSTOM_LLM_API_KEY=
-```
-
-To enable it, set a secret:
-
-```env
-CUSTOM_LLM_API_KEY=your-secret-here
-```
-
-Then requests to `POST /v1/chat/completions` must include:
-
-```text
-Authorization: Bearer your-secret-here
-```
-
-`GET /health` never requires authentication.
-
-The Streamlit UI reads the same `CUSTOM_LLM_API_KEY` from `.env` and sends it to the backend automatically.
-
-## Start the Streamlit UI
-
-In a second PowerShell window, with the virtual environment activated:
-
-```powershell
-cd E:\work\LocalVoiceAI
-.\.venv\Scripts\Activate.ps1
-streamlit run ui/streamlit_app.py
-```
-
-Open the URL Streamlit prints, usually:
-
-```text
-http://localhost:8501
-```
-
-Use the chat interface to test the backend without ElevenLabs. The UI sends the full conversation history to FastAPI with `stream: false`.
-
-## ElevenLabs Custom LLM Setup
-
-This project does not require an ElevenLabs API key. ElevenLabs acts as the client.
-
-After the backend works locally, expose it publicly with ngrok:
-
-```powershell
+```bash
 ngrok http 8000
 ```
 
-Use the public ngrok URL in ElevenLabs Custom LLM configuration.
-
-Example base URL:
-
 ```text
-https://YOUR-NGROK-URL.ngrok-free.app/v1
+API type:        Chat Completions
+Base URL:        https://YOUR-NGROK-URL.ngrok-free.app/v1
+Model ID:        local-llama
+Endpoint called: /v1/chat/completions
 ```
 
-Configure ElevenLabs with:
+If `CUSTOM_LLM_API_KEY` is set, add the same value as the bearer token in ElevenLabs' configuration.
 
-```text
-API type: Chat Completions
-Model ID: local-llama
-Endpoint called by ElevenLabs: /v1/chat/completions
-```
+## 📡 API Reference
 
-If `CUSTOM_LLM_API_KEY` is enabled, configure the same bearer token secret in ElevenLabs.
+| Endpoint | Method | Description |
+|---|---|---|
+| `/health` | GET | Backend status, provider name, and live Ollama reachability/model-availability check |
+| `/v1/models` | GET | Lists the OpenAI-style model ids the backend answers to |
+| `/v1/chat/completions` | POST | OpenAI-compatible chat completions — supports `stream: true/false` |
+| `/api/conversation/signed-url` | GET | Returns a signed WebSocket URL (or bare `agent_id`) for the browser widget |
 
-## Endpoints
+`/v1/chat/completions` accepts and safely ignores extra OpenAI-style fields (`tools`, `tool_choice`, `user_id`, `elevenlabs_extra_body`) so it doesn't break when ElevenLabs sends more than a minimal payload expects.
 
-### GET /health
+Streaming responses use `Content-Type: text/event-stream`, emit `data: {json}\n\n` chunks, and terminate with `data: [DONE]`.
 
-Returns backend, provider, Ollama reachability, and model availability status.
+## 🗺️ Roadmap
 
-### POST /v1/chat/completions
+- [x] OpenAI-compatible streaming + non-streaming completions
+- [x] Ollama provider with health checks and model-availability detection
+- [x] Browser mic widget wired to ElevenLabs Conversational AI
+- [x] Streamlit debug console
+- [ ] Additional providers (OpenAI, Anthropic, Gemini) behind the existing `LLMProvider` interface
+- [ ] Conversation memory / persistence across sessions
+- [ ] Dockerfile + docker-compose for one-command startup
+- [ ] Automated tests for the SSE streaming path
 
-OpenAI-compatible Chat Completions endpoint for ElevenLabs Custom LLM.
+## ⚠️ Notes
 
-Supported request fields include:
+- No OpenAI SDK, OpenAI API key, or ElevenLabs API key is required for the backend itself to run — ElevenLabs only needs your public endpoint URL.
+- `GET /health` never requires authentication, even when `CUSTOM_LLM_API_KEY` is set.
+- Ollama must be running locally (or reachable at `OLLAMA_BASE_URL`) for any completion to succeed.
 
-```json
-{
-  "model": "local-llama",
-  "messages": [
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "Hello"}
-  ],
-  "temperature": 0.7,
-  "max_tokens": 500,
-  "stream": true
-}
-```
+---
 
-Unknown optional fields are accepted and ignored safely, including `tools`, `tool_choice`, `user_id`, and `elevenlabs_extra_body`.
+<div align="center">
 
-## Notes
+Built by **Ahmed Ayman**
 
-- Do not install or configure the OpenAI Python SDK.
-- Do not set an OpenAI API key.
-- Do not set an ElevenLabs API key for this backend.
-- ElevenLabs handles voice.
-- FastAPI handles the Custom LLM API.
-- Ollama is the current model provider.
-- Streamlit is only a testing and monitoring UI.
-=======
-# LocalVoiceAI
->>>>>>> 69191e6e84179471c3490e5c32b123f38f812d48
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/eng-ahmed-ayman/)
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/ahmedayman2825)
+
+</div>

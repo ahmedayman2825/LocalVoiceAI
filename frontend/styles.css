@@ -1,0 +1,258 @@
+/* ── Reset & Base ─────────────────────────────────────────── */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #0f1117;
+    color: #e4e4e7;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+}
+
+/* ── Container ────────────────────────────────────────────── */
+.container {
+    width: 100%;
+    max-width: 640px;
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+header {
+    text-align: center;
+}
+
+header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    color: #ffffff;
+}
+
+.connection-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: #a1a1aa;
+    background: #1c1c24;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #71717a;
+    flex-shrink: 0;
+    transition: background 0.3s;
+}
+
+.status-dot.connecting {
+    background: #facc15;
+    animation: pulse-dot 1s ease-in-out infinite;
+}
+
+.status-dot.connected {
+    background: #22c55e;
+}
+
+.status-dot.error {
+    background: #ef4444;
+}
+
+/* ── Mic Button ───────────────────────────────────────────── */
+.mic-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.mic-button {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 3px solid #3f3f46;
+    background: #1c1c24;
+    color: #71717a;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.mic-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.mic-button.listening {
+    border-color: #22c55e;
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.08);
+    animation: pulse-ring 1.5s ease-in-out infinite;
+}
+
+.mic-button.speaking {
+    border-color: #6366f1;
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.08);
+}
+
+.mode-text {
+    font-size: 0.95rem;
+    color: #a1a1aa;
+    min-height: 1.4em;
+}
+
+.mode-text.listening {
+    color: #22c55e;
+    font-weight: 600;
+}
+
+.mode-text.speaking {
+    color: #6366f1;
+    font-weight: 600;
+}
+
+.mode-text.connecting {
+    color: #facc15;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.controls {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.btn {
+    padding: 0.65rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.btn-start {
+    background: #22c55e;
+    color: #052e16;
+}
+
+.btn-start:hover:not(:disabled) {
+    background: #16a34a;
+}
+
+.btn-end {
+    background: #ef4444;
+    color: #fff;
+}
+
+.btn-end:hover:not(:disabled) {
+    background: #dc2626;
+}
+
+/* ── Transcript ───────────────────────────────────────────── */
+.transcript-section h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #a1a1aa;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.transcript {
+    background: #1c1c24;
+    border-radius: 12px;
+    padding: 1rem;
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.transcript-placeholder {
+    color: #52525b;
+    font-style: italic;
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.message {
+    max-width: 85%;
+    padding: 0.6rem 0.9rem;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    word-wrap: break-word;
+}
+
+.message.user {
+    align-self: flex-end;
+    background: #22c55e;
+    color: #052e16;
+    border-bottom-right-radius: 4px;
+}
+
+.message.ai {
+    align-self: flex-start;
+    background: #27272a;
+    color: #e4e4e7;
+    border-bottom-left-radius: 4px;
+}
+
+.message .label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.25rem;
+    opacity: 0.7;
+}
+
+/* ── Animations ───────────────────────────────────────────── */
+@keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.35); }
+    70%  { box-shadow: 0 0 0 15px rgba(34, 197, 94, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+}
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+.transcript::-webkit-scrollbar {
+    width: 6px;
+}
+
+.transcript::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.transcript::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 3px;
+}

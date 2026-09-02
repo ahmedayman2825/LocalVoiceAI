@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Voice AI</title>
+    <link rel="stylesheet" href="/frontend/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎙️ Local Voice AI</h1>
+            <div class="connection-status" id="connection-status">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-text">Disconnected</span>
+            </div>
+        </header>
+
+        <main>
+            <div class="mic-section">
+                <button class="mic-button" id="mic-button" disabled>
+                    <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                    </svg>
+                </button>
+                <p class="mode-text" id="mode-text">Click Start to begin</p>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-start" id="btn-start">Start Conversation</button>
+                <button class="btn btn-end" id="btn-end" disabled>End Conversation</button>
+            </div>
+
+            <div class="transcript-section">
+                <h2>Conversation</h2>
+                <div class="transcript" id="transcript">
+                    <p class="transcript-placeholder" id="transcript-placeholder">
+                        Your conversation will appear here...
+                    </p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "@elevenlabs/client": "https://cdn.jsdelivr.net/npm/@elevenlabs/client@latest/+esm",
+            "@11labs/client": "https://cdn.jsdelivr.net/npm/@11labs/client@latest/+esm"
+        }
+    }
+    </script>
+    <script type="module" src="/frontend/app.js"></script>
+</body>
+</html>
